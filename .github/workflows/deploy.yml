@@ -1,8 +1,6 @@
 name: Deploy to Cloudflare
 
 on:
-  push:
-    branches: ['main']
   workflow_dispatch:
 
 jobs:
@@ -99,6 +97,19 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_CLOUDFLARE_ACCOUNT_ID: ${{ steps.fetch_account_id.outputs.account_id }}
           D1_ID: ${{ env.D1_ID }}
+
+      - name: Set Worker secrets
+        working-directory: worker
+        run: |
+          if [[ -z "$DINGTALK_TOKEN" ]]; then
+            echo "GitHub secret DINGTALK_TOKEN is required."
+            exit 1
+          fi
+          printf '%s' "$DINGTALK_TOKEN" | npx wrangler secret put DINGTALK_TOKEN --name uptimeflare_worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.fetch_account_id.outputs.account_id }}
+          DINGTALK_TOKEN: ${{ secrets.DINGTALK_TOKEN }}
 
       # Currently Terraform Cloudflare provider doesn't support direct upload, use wrangler to upload instead.
       - name: Upload pages

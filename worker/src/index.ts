@@ -9,6 +9,7 @@ import pLimit from 'p-limit'
 export interface Env {
   REMOTE_CHECKER_DO: DurableObjectNamespace<RemoteChecker>
   UPTIMEFLARE_D1: D1Database
+  DINGTALK_TOKEN: string
 }
 
 const Worker = {
@@ -77,7 +78,14 @@ const Worker = {
               currentTimeSecond - lastIncident.start[0] >=
                 (workerConfig.notification.gracePeriod + 1) * 60 - 30
             ) {
-              await formatAndNotify(monitor, true, lastIncident.start[0], currentTimeSecond, 'OK')
+              await formatAndNotify(
+                monitor,
+                true,
+                lastIncident.start[0],
+                currentTimeSecond,
+                'OK',
+                env.DINGTALK_TOKEN
+              )
             } else {
               console.log(
                 `grace period (${workerConfig.notification?.gracePeriod}m) not met, skipping webhook UP notification for ${monitor.name}`
@@ -149,7 +157,8 @@ const Worker = {
                 false,
                 currentIncident.start[0],
                 currentTimeSecond,
-                status.err
+                status.err,
+                env.DINGTALK_TOKEN
               )
             }
           } else {

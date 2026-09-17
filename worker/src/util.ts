@@ -79,10 +79,10 @@ function templateWebhookPlayload(payload: any, message: string) {
   }
 }
 
-async function webhookNotify(webhook: WebhookConfig, message: string) {
+async function webhookNotify(webhook: WebhookConfig, message: string, token?: string) {
   if (Array.isArray(webhook)) {
     for (const w of webhook) {
-      await webhookNotify(w, message)
+      await webhookNotify(w, message, token)
     }
     return
   }
@@ -94,6 +94,12 @@ async function webhookNotify(webhook: WebhookConfig, message: string) {
     let url = webhook.url
     let method = webhook.method
     let headers = new Headers(webhook.headers as any)
+    if (webhook.tokenEnv) {
+      if (!token) {
+        throw new Error(`Missing webhook token environment binding: ${webhook.tokenEnv}`)
+      }
+      headers.set('Authorization', `Bearer ${token}`)
+    }
     let payloadTemplated: { [key: string]: string | number } = JSON.parse(
       JSON.stringify(webhook.payload)
     )
@@ -127,9 +133,15 @@ async function webhookNotify(webhook: WebhookConfig, message: string) {
         throw 'Unrecognized payload type: ' + webhook.payloadType
     }
 
+    const logHeaders = Object.fromEntries(
+      Array.from(headers.entries()).map(([key, value]) => [
+        key,
+        key.toLowerCase() === 'authorization' ? '[REDACTED]' : value,
+      ])
+    )
     console.log(
       `Webhook finalized parameters: ${method} ${url}, headers ${JSON.stringify(
-        Object.fromEntries(headers.entries())
+        logHeaders
       )}, body ${JSON.stringify(body)}`
     )
     const resp = await fetchTimeout(url, webhook.timeout ?? 5000, { method, headers, body })
@@ -152,7 +164,8 @@ const formatAndNotify = async (
   isUp: boolean,
   timeIncidentStart: number,
   timeNow: number,
-  reason: string
+  reason: string,
+  token?: string
 ) => {
   // Skip notification if monitor is in the skip list
   const skipList = workerConfig.notification?.skipNotificationIds
@@ -185,7 +198,7 @@ const formatAndNotify = async (
       reason,
       workerConfig.notification?.timeZone ?? 'Etc/GMT'
     )
-    await webhookNotify(workerConfig.notification.webhook, notification)
+    await webhookNotify(workerConfig.notification.webhook, notification, token)
   } else {
     console.log(`Webhook not set, skipping notification for ${monitor.name}`)
   }

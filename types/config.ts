@@ -67,6 +67,7 @@ type SingleWebhook = {
   url: string
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH'
   headers?: { [key: string]: string | number }
+  tokenEnv?: string
   payloadType: 'param' | 'json' | 'x-www-form-urlencoded'
   payload: any
   timeout?: number
